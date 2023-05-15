@@ -114,6 +114,7 @@ pub trait OpenTelemetrySpanExt {
     /// make_request(Span::current().context())
     /// ```
     fn context(&self) -> Context;
+    fn parent_context(&self) -> Context;
 }
 
 impl OpenTelemetrySpanExt for tracing::Span {
@@ -161,6 +162,19 @@ impl OpenTelemetrySpanExt for tracing::Span {
             if let Some(get_context) = subscriber.downcast_ref::<WithContext>() {
                 get_context.with_context(subscriber, id, |builder, tracer| {
                     cx = Some(tracer.sampled_context(builder));
+                })
+            }
+        });
+
+        cx.unwrap_or_default()
+    }
+
+    fn parent_context(&self) -> Context {
+        let mut cx = None;
+        self.with_subscriber(|(id, subscriber)| {
+            if let Some(get_context) = subscriber.downcast_ref::<WithContext>() {
+                get_context.with_context(subscriber, id, |builder, _tracer| {
+                    cx = Some(builder.parent_cx.clone());
                 })
             }
         });
